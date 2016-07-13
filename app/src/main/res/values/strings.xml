@@ -1,0 +1,15 @@
+<resources>
+    <string name="app_name">AlarmClock</string>
+    <string name="alarm">Alarm</string>
+    <string name="edit">Edit</string>
+    <string name="add_alarm">Add Alarm</string>
+    <string name="cancel">Cancel</string>
+    <string name="save">Save</string>
+    <string name="repeat">Repeat</string>
+    <string name="label">Label</string>
+    <string name="sound">Sound</string>
+    <string name="snooze">Snooze</string>
+    <string name="delete">Delete Alarm</string>
+    <string name="done">Done</string>
+
+</resources>

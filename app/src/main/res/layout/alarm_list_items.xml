@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="horizontal" android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:descendantFocusability="blocksDescendants"
+    android:id="@+id/alarm_section">
+
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingLeft="10dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:id="@+id/alarm_time"
+                android:textSize="30dp"/>
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:id="@+id/alarm_label"
+                android:text="@string/alarm"
+                android:maxWidth="265dp"
+                android:ellipsize="end"
+                android:singleLine="true"
+                android:textSize="17sp" />
+
+
+            </LinearLayout>
+            </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="65dp"
+        android:orientation="horizontal"
+        android:gravity="end|center_vertical"
+        android:id="@+id/transition_container"
+        android:paddingRight="10dp">
+
+
+        <ImageButton
+            android:layout_width="35dp"
+            android:layout_height="35dp"
+            android:background="@drawable/button_press"
+            android:id="@+id/alarm_toggle"
+            android:src="@drawable/ic_alarm_off_black_24dp"
+            android:scaleType="centerInside"
+            />
+
+        <ImageView
+            android:layout_width="30dp"
+            android:layout_height="30dp"
+            android:id="@+id/edit_hint"
+            android:visibility="gone"
+            android:src="@drawable/ic_keyboard_arrow_right_black_24dp"/>
+
+    </LinearLayout>
+
+
+
+</LinearLayout>

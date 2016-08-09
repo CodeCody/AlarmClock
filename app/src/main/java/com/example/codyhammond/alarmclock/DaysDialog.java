@@ -76,7 +76,6 @@ public class DaysDialog extends DialogFragment
         getDialog().getWindow().setLayout(200,400);
      //   week_list.setItemsCanFocus(true);
 
-
         return view;
     }
 

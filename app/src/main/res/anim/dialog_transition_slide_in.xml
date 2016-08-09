@@ -5,7 +5,6 @@
  <translate
      android:fromXDelta="100%p"
      android:toXDelta="0%p">
-
  </translate>
 
 </set>

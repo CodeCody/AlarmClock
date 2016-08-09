@@ -40,7 +40,7 @@ public class Alarm implements Parcelable
     public final static int SNOOZE_TIME=300000;
     private StringBuilder standardTime;
     private String Label="Alarm";
-    private Calendar calendar;
+    private Calendar calendar=Calendar.getInstance();
     private boolean isAlarmOn=false;
     private Set<Day>days=new TreeSet<>(new Comparator<Alarm.Day>() {
         @Override
@@ -56,7 +56,7 @@ public class Alarm implements Parcelable
 
     public Alarm()
     {
-        calendar=Calendar.getInstance();
+
     }
 
     public void setAlarmID(int id)
@@ -71,7 +71,9 @@ public class Alarm implements Parcelable
 
     public String getTime()
     {
-        return alarmTime;
+        String hour=String.valueOf(calendar.get(Calendar.HOUR_OF_DAY));
+        String min=String.valueOf(calendar.get(Calendar.MINUTE));
+        return alarmTime=hour+":"+min;
     }
 
     public String getLabel()
@@ -79,7 +81,7 @@ public class Alarm implements Parcelable
         return Label;
     }
 
-    public void setAlarmOnOff(boolean flag)
+    public void toggleAlarmOnOff(boolean flag)
     {
         isAlarmOn=flag;
     }
@@ -104,14 +106,20 @@ public class Alarm implements Parcelable
         Label=label;
     }
 
-    public void setDays(Set<Day>days)
+    public void setDays(Day[] days)
     {
-        this.days=days;
+        this.days.addAll(Arrays.asList(days));
+
     }
 
     public Set<Day> getDays()
     {
         return days;
+    }
+
+    public Day[] getSerializableDayArray()
+    {
+        return days.toArray(new Day[days.size()]);
     }
 
     public String getDaysToString()
@@ -154,9 +162,9 @@ public class Alarm implements Parcelable
 
         int hour=Integer.parseInt(splitTime[0]);
         int min=Integer.parseInt(splitTime[1]);
-        calendar=Calendar.getInstance();
         calendar.set(Calendar.HOUR_OF_DAY,hour);
         calendar.set(Calendar.MINUTE,min);
+        calendar.set(Calendar.SECOND,0);
         String format;
 
         if (hour == 0) {
@@ -272,15 +280,22 @@ public class Alarm implements Parcelable
 
 
     public long getTimeInMilliseconds() {
-       /* if (calendar.before(Calendar.getInstance()))
-            calendar.add(Calendar.DAY_OF_MONTH, 1); */
+        Log.i("before",calendar.getTime().toString());
+        Log.i("before",String.valueOf(calendar.getTimeInMillis()));
+        Log.i("current millitime",String.valueOf(System.currentTimeMillis()));
+
+        if (calendar.before(Calendar.getInstance()))
+            calendar.add(Calendar.DAY_OF_MONTH, 1);
         if(getDays().size() > 0) {
 
             while (!getDays().contains(Day.values()[calendar.get(Calendar.DAY_OF_WEEK) - 1])) {
                 calendar.add(Calendar.DAY_OF_MONTH, 1);
             }
         }
-        Log.i("add day",calendar.getTime().toString());
+        Log.i("after",calendar.getTime().toString());
+        Log.i("after",String.valueOf(calendar.getTimeInMillis()));
+        Log.i("current millitime",String.valueOf(calendar.getTimeInMillis()-System.currentTimeMillis()));
+
         return calendar.getTimeInMillis();
     }
 
@@ -291,11 +306,12 @@ public class Alarm implements Parcelable
         PendingIntent pi=PendingIntent.getBroadcast(context,0,intent,PendingIntent.FLAG_CANCEL_CURRENT);
         AlarmManager alarmManager=(AlarmManager)context.getSystemService(Context.ALARM_SERVICE);
         alarmManager.set(AlarmManager.RTC_WAKEUP, getTimeInMilliseconds(), pi);
+      //  Toast.makeText(context,getTimeUntilNextAlarmMessage(),Toast.LENGTH_SHORT).show();
     }
 
 
     public String getTimeUntilNextAlarmMessage(){
-        long timeDifference = calendar.getTimeInMillis() - System.currentTimeMillis();
+        long timeDifference = getTimeInMilliseconds() - System.currentTimeMillis();
         long days = timeDifference / (1000 * 60 * 60 * 24);
         long hours = timeDifference / (1000 * 60 * 60) - (days * 24);
         long minutes = timeDifference / (1000 * 60) - (days * 24 * 60) - (hours * 60);
@@ -321,15 +337,17 @@ public class Alarm implements Parcelable
        return alert;
     }
 
-    public void scheduleAlarmSnooze(Context context)
+    public void scheduleAlarmSnooze(Context context,Database database)
     {
         long current=System.currentTimeMillis();
 
-        Intent intent=new Intent(context,AlertReceiver.class);
+        Intent intent=new Intent(context,AlarmScheduleService.class);
         intent.putExtra(ALARM_KEY,this);
-        PendingIntent pi=PendingIntent.getBroadcast(context,0,intent,PendingIntent.FLAG_CANCEL_CURRENT);
-        AlarmManager alarmManager=(AlarmManager)context.getSystemService(Context.ALARM_SERVICE);
-        alarmManager.set(AlarmManager.RTC_WAKEUP,current+SNOOZE_TIME,pi);
+        calendar.add(Calendar.MINUTE,1);
+        database.updateAlarm(this);
+        context.startService(intent);
+
+
     }
 
     @Override
@@ -427,9 +445,12 @@ public class Alarm implements Parcelable
         return 0;
     }
 
-    public void removeFromSchedule(Context context)
+/*    public void removeFromSchedule(Context context)
     {
         AlarmManager alarmManager=(AlarmManager)context.getSystemService(Context.ALARM_SERVICE);
-        //alarmManager.cancel();
-    }
+        Intent intent=new Intent();
+        intent.putExtra(ALARM_KEY,this);
+        PendingIntent pendingIntent=PendingIntent.getBroadcast(context,0,intent,PendingIntent.FLAG_CANCEL_CURRENT);
+        alarmManager.cancel(pendingIntent);
+    } */
 }

@@ -15,35 +15,40 @@ import android.support.v7.widget.Toolbar;
 import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;
 import android.util.Log;
+import android.view.Window;
+import android.view.WindowManager;
 
 import java.io.IOException;
 
 public class MainActivity extends AppCompatActivity implements MediaPlayer.OnPreparedListener {
 
+    public static long DEACTIVATE_ALARM=1234512345;
     @Override
     protected void onCreate(Bundle savedInstanceState)
     {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+
         FragmentManager manager=getSupportFragmentManager();
-        StaticWakeLock.acquire(this);
+
         Intent intent=getIntent();
-        if(intent.hasExtra(Alarm.ALARM_KEY))
-        {
-            playAlarm(intent);
-        }
+
         if(savedInstanceState==null)
         {
             Fragment fragment=new AlarmList();
             manager.beginTransaction().add(R.id.activity_main,fragment).commit();
         }
 
+        if(intent.hasExtra(Alarm.ALARM_KEY))
+        {
+            playAlarm(intent);
+        }
     }
 
     @Override
     public void onNewIntent(Intent intent)
     {
-        StaticWakeLock.acquire(this);
         if(intent.hasExtra(Alarm.ALARM_KEY)) {
             playAlarm(intent);
         }
@@ -53,16 +58,25 @@ public class MainActivity extends AppCompatActivity implements MediaPlayer.OnPre
     {
         final Alarm alarm=intent.getParcelableExtra(Alarm.ALARM_KEY);
 
+        final Window window = getWindow();
+        window.addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
+                | WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD);
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+                | WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON);
+
         final MediaPlayer mediaPlayer=new MediaPlayer();
         AlertDialog.Builder alertDialogBuilder= new AlertDialog.Builder(this);
         if(alarm.isSnoozeOn()) {
             alertDialogBuilder.setNegativeButton("Snooze", new DialogInterface.OnClickListener() {
                 @Override
                 public void onClick(DialogInterface dialog, int which) {
-                    alarm.scheduleAlarmSnooze(getApplicationContext());
+                    alarm.scheduleAlarmSnooze(getApplicationContext(),Database.getInstance(getApplicationContext()));
                     mediaPlayer.stop();
                     mediaPlayer.release();
-                    StaticWakeLock.release();
+
+
+                    window.clearFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED | WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD);
+                    window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON | WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON);
                 }
             });
         }
@@ -72,15 +86,42 @@ public class MainActivity extends AppCompatActivity implements MediaPlayer.OnPre
             public void onClick(DialogInterface dialog, int which) {
                 mediaPlayer.stop();
                 mediaPlayer.release();
-                StaticWakeLock.release();
+
+                window.clearFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED | WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD);
+                window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON | WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON);
+
                 if(alarm.getDays().size()==0)
                 {
-                    alarm.setAlarmOnOff(false);
+                    ((AlarmList)getSupportFragmentManager().getFragments().get(0)).showDeactivatedAlarmView(alarm.getAlarmID());
                 }
             }
         });
 
         alertDialogBuilder.setTitle(alarm.getLabel());
+
+        alertDialogBuilder.setOnDismissListener(new DialogInterface.OnDismissListener() {
+            @Override
+            public void onDismiss(DialogInterface dialog) {
+                try
+                {
+                    mediaPlayer.stop();
+                    mediaPlayer.release();
+
+                    window.clearFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED | WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD);
+                    window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON | WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON);
+
+                    if (alarm.getDays().size() == 0) {
+                        ((AlarmList) getSupportFragmentManager().getFragments().get(0)).showDeactivatedAlarmView(alarm.getAlarmID());
+                    }
+                }
+                catch (IllegalStateException ISE)
+                {
+                    //do nothing,media player already stopped.
+                }
+                StaticWakeLock.release();
+
+            }
+        });
 
 
         alertDialogBuilder.show();
@@ -152,6 +193,5 @@ public class MainActivity extends AppCompatActivity implements MediaPlayer.OnPre
     protected void onDestroy()
     {
         super.onDestroy();
-        StaticWakeLock.release();
     }
 }

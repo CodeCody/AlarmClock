@@ -31,6 +31,8 @@ import android.widget.TextView;
 
 import org.w3c.dom.Text;
 
+import java.io.IOException;
+import java.net.HttpURLConnection;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
@@ -55,18 +57,18 @@ public class AlarmList extends Fragment implements DataSetChanged {
     private List<Alarm>alarmArray=new LinkedList<>();
     private Database database;
     private Integer color;
-    private boolean edit_flag=false;
+    private boolean isEditModeEnabled=false;
     private List<ViewGroup>viewGroupList=new LinkedList<>();
     private AlarmAdapter alarmAdapter;
-
-
-
 
     @Override
     public void notifyDataSetChanged()
     {
-        alarmAdapter.clearViewGroupList();
+        if(alarmList==null)
+            return;
+
         ((AlarmAdapter)alarmList.getAdapter()).notifyDataSetChanged();
+        alarmAdapter.clearViewGroupList();
         alarmAdapter.animateViewGroupList();
         listVisibilityChange();
     }
@@ -74,7 +76,7 @@ public class AlarmList extends Fragment implements DataSetChanged {
     @Override
     public boolean getEditFlag()
     {
-        return edit_flag;
+        return isEditModeEnabled;
     }
 
     public final static String sADD_DELETE="option";
@@ -83,11 +85,25 @@ public class AlarmList extends Fragment implements DataSetChanged {
     public void onAttach(Context context)
     {
         super.onAttach(context);
+
         hostActivity=(MainActivity)context;
         database=Database.getInstance(context);
+        database.setListViewDataSetChangedListener(this);
         alarmArray=(LinkedList)database.getAlarms();
         color=new TextView(getContext()).getCurrentTextColor();
     }
+
+    public static AlarmList newInstanceWithAlarm(Alarm alarm)
+    {
+        Bundle bundle=new Bundle();
+        bundle.putParcelable(Alarm.ALARM_KEY,alarm);
+
+        AlarmList alarmListFragment=new AlarmList();
+        alarmListFragment.setArguments(bundle);
+
+        return alarmListFragment;
+    }
+
 
     @Override
     public void onCreate(Bundle savedInstanceState)
@@ -104,6 +120,7 @@ public class AlarmList extends Fragment implements DataSetChanged {
         Log.i("OnDestroy","OnDestroy Called");
      //   alarmAdapter.unregisterDataSetObserver(datasetObserver);
         database.close();
+        database=null;
     }
 
     @Override
@@ -133,24 +150,29 @@ public class AlarmList extends Fragment implements DataSetChanged {
                 TextView alarmLabel=(TextView)view.findViewById(R.id.alarm_label);
                 Alarm alarm=alarmArray.get(position);
 
-                if(!edit_flag) {
+                if(!isEditModeEnabled || id==MainActivity.DEACTIVATE_ALARM) {
                     if (alarm.isAlarmOn()) {
                         turnAlarmOnOff.setImageDrawable(getResources().getDrawable(R.drawable.ic_alarm_off_black_24dp));
-                        alarm.setAlarmOnOff(false);
+                        alarm.toggleAlarmOnOff(false);
                         alarm_section.setBackgroundColor(getResources().getColor(R.color.mid_gray));
                         time.setTextColor(color);
                         alarmLabel.setTextColor(color);
-                        alarm.removeFromSchedule(getContext());
                         database.updateAlarm(alarm);
+
+                        if(id==MainActivity.DEACTIVATE_ALARM)
+                            alarmList.invalidateViews();
+
                     } else {
                         turnAlarmOnOff.setImageDrawable(getResources().getDrawable(R.drawable.ic_alarm_on_black_24dp));
-                        alarm.setAlarmOnOff(true);
+                        alarm.toggleAlarmOnOff(true);
                         alarm_section.setBackgroundColor(Color.WHITE);
                         time.setTextColor(Color.BLACK);
                         alarmLabel.setTextColor(Color.BLACK);
                         database.updateAlarm(alarm);
-                        alarm.scheduleAlarm(getContext());
                     }
+
+                    AlarmScheduleService.updateAlarmSchedule(getContext());
+
                 }
                 else
                 {
@@ -166,21 +188,17 @@ public class AlarmList extends Fragment implements DataSetChanged {
             @Override
             public void onClick(View v) {
 
-                if(!edit_flag) {
-                    edit_flag = true;
+                if(!isEditModeEnabled) {
+                    isEditModeEnabled = true;
                     Edit.setText(R.string.done);
-                    //alarmAdapter.showArrow();
                      alarmAdapter.animateViewGroupList();
-
                 }
                 else
                 {
-                    edit_flag=false;
+                    isEditModeEnabled=false;
                     Edit.setText(R.string.edit);
-                    //alarmAdapter.hideArrow();
                     alarmAdapter.animateViewGroupList();
                 }
-
             }
         });
 
@@ -210,6 +228,19 @@ public class AlarmList extends Fragment implements DataSetChanged {
         }
     }
 
+    public void showDeactivatedAlarmView(int id)
+    {
+        int pos=0;
+        for(Alarm alarm : alarmArray)
+        {
+            if(alarm.getAlarmID()==id)
+            {
+                break;
+            }
+            pos++;
+        }
+        alarmList.performItemClick(alarmList.getAdapter().getView(pos,null,null),pos,MainActivity.DEACTIVATE_ALARM);
+    }
 
     class AlarmAdapter extends ArrayAdapter<Alarm>
     {
@@ -235,24 +266,28 @@ public class AlarmList extends Fragment implements DataSetChanged {
             if(!viewGroupList.contains(viewGroup1)) {
                 viewGroupList.add(viewGroup1);
             }
-      /*
-            } */
+
             final Alarm alarm=alarmArray.get(pos);
             time=(TextView)view.findViewById(R.id.alarm_time);
-          //  repeat_days=(TextView)view.findViewById(R.id.repeat_section_alarm_list);
+
             ImageView arrow=(ImageView)view.findViewById(R.id.edit_hint);
             alarmLabel=(TextView)view.findViewById(R.id.alarm_label);
             turnAlarmOnOff=(ImageButton)view.findViewById(R.id.alarm_toggle);
             alarmLabel.setText(alarm.getLabel());
             String repeatDays=alarm.getDaysToString();
-            if(!repeatDays.equals("Never"))
+            if(!repeatDays.equals("Never") && !repeatDays.equals("Everyday"))
+            {
+                alarmLabel.append(",");
+                alarmLabel.append(repeatDays);
+            }
+            else if(repeatDays.equals("Everyday"))
             {
                 alarmLabel.append(",");
                 alarmLabel.append(repeatDays);
             }
            // repeat_days.append(alarm.getDays().size() > 0 ? alarm.getDaysToString() : null);
 
-            if(edit_flag)
+            if(isEditModeEnabled)
             {
                 arrow.setVisibility(View.VISIBLE);
             }
@@ -261,7 +296,13 @@ public class AlarmList extends Fragment implements DataSetChanged {
                 arrow.setVisibility(View.GONE);
             }
 
+            time.setText(alarm.getStandardTime());
+            initializeAlarmStatuses(alarm);
+            return view;
+        }
 
+        public void initializeAlarmStatuses(Alarm alarm)
+        {
             if(!alarm.isAlarmOn())
             {
                 turnAlarmOnOff.setImageDrawable(getResources().getDrawable(R.drawable.ic_alarm_off_black_24dp));
@@ -273,19 +314,12 @@ public class AlarmList extends Fragment implements DataSetChanged {
             else
             {
                 turnAlarmOnOff.setImageDrawable(getResources().getDrawable(R.drawable.ic_alarm_on_black_24dp));
-                alarm.setAlarmOnOff(true);
                 alarm_section.setBackgroundColor(Color.WHITE);
                 time.setTextColor(Color.BLACK);
-               // repeat_days.setTextColor(Color.BLACK);
+                // repeat_days.setTextColor(Color.BLACK);
                 alarmLabel.setTextColor(Color.BLACK);
             }
-
-            time.setText(alarm.getStandardTime());
-
-            return view;
-
         }
-
         public void clearViewGroupList()
         {
             viewGroupList.clear();
@@ -302,7 +336,7 @@ public class AlarmList extends Fragment implements DataSetChanged {
             for( ViewGroup viewGroup : viewGroupList)
             {
                 TransitionManager.beginDelayedTransition(viewGroup);
-                ((ImageView)viewGroup.findViewById(R.id.edit_hint)).setVisibility(edit_flag ? View.VISIBLE : View.GONE);
+                ((ImageView)viewGroup.findViewById(R.id.edit_hint)).setVisibility(isEditModeEnabled ? View.VISIBLE : View.GONE);
             }
         }
 

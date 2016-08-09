@@ -9,6 +9,7 @@ import android.view.WindowManager;
  */
 public class StaticWakeLock {
     private static PowerManager.WakeLock wakeLock=null;
+    public static int variable;
     public static void acquire(Context context)
     {
         if(wakeLock==null)

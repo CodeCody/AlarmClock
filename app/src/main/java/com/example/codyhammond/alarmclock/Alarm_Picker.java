@@ -1,11 +1,6 @@
 package com.example.codyhammond.alarmclock;
 
-import android.app.AlarmManager;
-import android.app.PendingIntent;
 import android.content.Context;
-import android.content.ContextWrapper;
-import android.content.Intent;
-import android.database.sqlite.SQLiteDatabase;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentManager;
@@ -13,7 +8,6 @@ import android.support.v7.widget.SwitchCompat;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.util.TypedValue;
-import android.view.ContextThemeWrapper;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -23,14 +17,8 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.TimePicker;
 import android.widget.Toast;
-import android.widget.ToggleButton;
 
-import org.w3c.dom.Text;
-
-import java.util.Calendar;
-import java.util.Date;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -54,10 +42,10 @@ public class Alarm_Picker extends Fragment implements AlarmUpdate {
     private TimePicker timePicker;
     private Toolbar toolbar;
     private MainActivity hostActivity;
-    private LinearLayout repeat_section,sound_section,label_section,delete_section,snooze_section;
+    private LinearLayout repeat_section,ringtone_section,label_section,delete_section,snooze_section;
     private SwitchCompat switchSnooze;
     private Button cancel,save;
-    private TextView repeat_text,label_text,sound_text;
+    private TextView repeat_text,label_text,ringtone_text;
     private Database AlarmDatabase;
     private static DataSetChanged DataChangeCallBack;
     private Map<String,String> ringtones=new HashMap<>();
@@ -98,7 +86,7 @@ public class Alarm_Picker extends Fragment implements AlarmUpdate {
     @Override
     public void updateSoundLabel(String label)
     {
-        sound_text.setText(label);
+        ringtone_text.setText(label);
         newAlarm.setAlarmSoundTitle(label);
         newAlarm.setAlarmSoundPath(ringtones.get(label));
     }
@@ -108,8 +96,9 @@ public class Alarm_Picker extends Fragment implements AlarmUpdate {
     public void updateRepeatDays(String label, Set<Alarm.Day> days)
     {
         adjustRepeatSectionTextSize(label);
-        newAlarm.setDays(days);
+        newAlarm.setDays(days.toArray(new Alarm.Day[days.size()]));
     }
+
 
     @Override
     public void onAttach(Context context)
@@ -130,11 +119,12 @@ public class Alarm_Picker extends Fragment implements AlarmUpdate {
         cancel=(Button) view.findViewById(R.id.cancel);
         save=(Button)view.findViewById(R.id.save);
         repeat_text=(TextView)view.findViewById(R.id.repeat_text);
+        Toolbar toolbar=(Toolbar)view.findViewById(R.id.toolbar_picker_fragment);
         label_text=(TextView)view.findViewById(R.id.label_setting);
-        sound_text=(TextView)view.findViewById(R.id.sound_text);
-        sound_text.setText(ringtones.keySet().toArray(new String[ringtones.size()])[0]);
+        ringtone_text=(TextView)view.findViewById(R.id.sound_text);
+        ringtone_text.setText(ringtones.keySet().toArray(new String[ringtones.size()])[0]);
         repeat_section=(LinearLayout)view.findViewById(R.id.repeat_section);
-        sound_section=(LinearLayout)view.findViewById(R.id.sound_section);
+        ringtone_section=(LinearLayout)view.findViewById(R.id.sound_section);
         label_section=(LinearLayout)view.findViewById(R.id.label_section);
         delete_section=(LinearLayout)view.findViewById(R.id.delete_section);
         snooze_section=(LinearLayout)view.findViewById(R.id.snooze_section);
@@ -145,8 +135,13 @@ public class Alarm_Picker extends Fragment implements AlarmUpdate {
             int pos=getArguments().getInt(AlarmList.sADD_DELETE);
             newAlarm = AlarmDatabase.getAlarm(pos);
             adjustRepeatSectionTextSize(newAlarm.getDaysToString());
-            sound_text.setText(newAlarm.getAlarmSoundTitle());
+            ringtone_text.setText(newAlarm.getAlarmSoundTitle());
             label_text.setText(newAlarm.getLabel());
+            toolbar.setTitle("Edit Alarm");
+            String [] time=newAlarm.getTime().split(":");
+            timePicker.setCurrentHour(Integer.parseInt(time[0]));
+            timePicker.setCurrentMinute(Integer.parseInt(time[1]));
+
         }
         else {
             newAlarm = new Alarm();
@@ -166,21 +161,20 @@ public class Alarm_Picker extends Fragment implements AlarmUpdate {
             @Override
             public void onClick(View v) {
 
-
                 newAlarm.setAlarmTime(getpickerTime());
+                newAlarm.toggleAlarmOnOff(true);
                 if(getArguments()!=null)
                 {
                     AlarmDatabase.updateAlarm(newAlarm);
-                    newAlarm.scheduleAlarm(getContext());
                 }
                 else {
-                    newAlarm.setAlarmSoundTitle(sound_text.getText().toString());
-                    newAlarm.setAlarmSoundPath(ringtones.get(sound_text.getText().toString()));
-                    newAlarm.setAlarmOnOff(true);
+                    newAlarm.setAlarmSoundTitle(ringtone_text.getText().toString());
+                    newAlarm.setAlarmSoundPath(ringtones.get(ringtone_text.getText().toString()));
+                    newAlarm.toggleAlarmOnOff(true);
                     AlarmDatabase.saveAlarm(newAlarm);
-                    newAlarm.scheduleAlarm(getContext());
                 }
 
+                AlarmScheduleService.updateAlarmSchedule(getContext());
                 DataChangeCallBack.notifyDataSetChanged();
                 Toast.makeText(getContext(), newAlarm.getTimeUntilNextAlarmMessage(), Toast.LENGTH_SHORT).show();
                 getActivity().getSupportFragmentManager().popBackStack();
@@ -197,7 +191,7 @@ public class Alarm_Picker extends Fragment implements AlarmUpdate {
             }
         });
 
-        sound_section.setOnClickListener(new View.OnClickListener() {
+        ringtone_section.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 int style=R.style.DialogSlideAnimation;
@@ -250,6 +244,7 @@ public class Alarm_Picker extends Fragment implements AlarmUpdate {
             public void onClick(View v) {
                deleteAlarm();
                 DataChangeCallBack.notifyDataSetChanged();
+                AlarmScheduleService.updateAlarmSchedule(getContext());
                 getActivity().getSupportFragmentManager().popBackStack();
             }
         });
@@ -258,6 +253,8 @@ public class Alarm_Picker extends Fragment implements AlarmUpdate {
         hostActivity.getSupportActionBar().setDisplayShowTitleEnabled(false);
         return view;
     }
+
+
 
     public void adjustRepeatSectionTextSize(String label)
     {
@@ -273,12 +270,6 @@ public class Alarm_Picker extends Fragment implements AlarmUpdate {
     }
     public void deleteAlarm()
     {
-        AlarmManager alarmManager=(AlarmManager)getContext().getSystemService(Context.ALARM_SERVICE);
-        Intent intent=new Intent(getContext(),AlertReceiver.class);
-        intent.putExtra(Alarm.ALARM_KEY,newAlarm);
-        PendingIntent pendingIntent=PendingIntent.getBroadcast(getContext(),0,intent,PendingIntent.FLAG_CANCEL_CURRENT);
-        alarmManager.cancel(pendingIntent);
-
         AlarmDatabase.deleteAlarm(newAlarm);
     }
  /*   public void UpdateAlarm()

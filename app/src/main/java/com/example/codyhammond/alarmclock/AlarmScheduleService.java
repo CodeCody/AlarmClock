@@ -4,10 +4,10 @@ import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.os.IBinder;
+import android.util.Log;
 import android.widget.Toast;
 
 import java.util.Comparator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
@@ -15,7 +15,7 @@ import java.util.TreeSet;
 /**
  * Created by codyhammond on 6/29/16.
  */
-public class AlarmBootUpService extends Service
+public class AlarmScheduleService extends Service
 {
     @Override
     public IBinder onBind(Intent intent)
@@ -26,18 +26,35 @@ public class AlarmBootUpService extends Service
     @Override
     public int onStartCommand(Intent intent,int flags,int id)
     {
-        Alarm alarm=getAlarm();
-        StaticWakeLock.acquire(getApplicationContext());
-        alarm.scheduleAlarm(getApplicationContext());
-        Toast.makeText(getApplicationContext(), "a", Toast.LENGTH_SHORT).show();
+        try {
+            Alarm alarm = getAlarm();
+            if (alarm != null) {
+                StaticWakeLock.acquire(getApplicationContext());
+                alarm.scheduleAlarm(getApplicationContext());
+              //  Toast.makeText(getApplicationContext(), alarm.getTimeUntilNextAlarmMessage(), Toast.LENGTH_SHORT).show();
+            }
+        }
+        catch (Exception e)
+        {
+            Toast.makeText(getApplicationContext(),e.getMessage(),Toast.LENGTH_LONG).show();
+        }
 
+
+     //  Toast.makeText(getApplicationContext(), "Toasty Toast", Toast.LENGTH_SHORT).show();
         return START_NOT_STICKY;
     }
 
+    public static void updateAlarmSchedule(Context context)
+    {
+        Intent intent=new Intent(context,AlarmScheduleService.class);
+        context.startService(intent);
+    }
 
     public Alarm getAlarm()
     {
+
         Database alarmDatabase=Database.getInstance(getApplicationContext());
+
 
         Set<Alarm> alarmQueue = new TreeSet<>(new Comparator<Alarm>() {
             @Override
@@ -53,7 +70,8 @@ public class AlarmBootUpService extends Service
             }
         });
 
-        List<Alarm> alarms=alarmDatabase.getAlarms();
+        List<Alarm> alarms=alarmDatabase.getAlarmsForService();
+
 
         for(Alarm alarm : alarms)
         {
@@ -65,10 +83,13 @@ public class AlarmBootUpService extends Service
 
         if(alarmQueue.iterator().hasNext())
         {
+          //  Toast.makeText(getApplicationContext(),"Got alarms",Toast.LENGTH_LONG).show();
             return alarmQueue.iterator().next();
         }
         else
         {
+
+         //   Toast.makeText(getApplicationContext(),"no alarms",Toast.LENGTH_LONG).show();
             return null;
         }
 

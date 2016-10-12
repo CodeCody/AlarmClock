@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.example.codyhammond.alarmclock">
+    package="com.alarm.codyhammond.alarmclock">
 
     <uses-permission android:name="android.permission.MEDIA_CONTENT_CONTROL"></uses-permission>
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"></uses-permission>
@@ -12,12 +12,12 @@
 
     <application
         android:allowBackup="true"
-        android:icon="@mipmap/ic_launcher"
+        android:icon="@mipmap/red_clock"
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
 
-        <activity android:name=".MainActivity" android:screenOrientation="portrait" android:launchMode="singleTop">
+        <activity android:name="com.alarm.codyhammond.alarmclock.MainActivity" android:screenOrientation="portrait" android:launchMode="singleTop">
 
 
             <intent-filter>
@@ -26,15 +26,15 @@
             </intent-filter>
         </activity>
 
-        <receiver android:name=".AlarmBootUpReceiver">
+        <receiver android:name="com.alarm.codyhammond.alarmclock.AlarmBootUpReceiver">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED"></action>
             </intent-filter>
         </receiver>
 
 
-        <service android:name=".AlarmScheduleService"></service>
-        <receiver android:name=".AlertReceiver">
+        <service android:name="com.alarm.codyhammond.alarmclock.AlarmScheduleService"></service>
+        <receiver android:name="com.alarm.codyhammond.alarmclock.AlertReceiver">
 
         </receiver>
     </application>

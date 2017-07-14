@@ -2,10 +2,10 @@ apply plugin: 'com.android.application'
 
 android {
     compileSdkVersion 24
-    buildToolsVersion "23.0.3"
+    buildToolsVersion '25.0.0'
 
     defaultConfig {
-        applicationId "com.alarm.codyhammond.alarmclock"
+        applicationId "com.alarm.codyhammond.alarmclockapp"
         minSdkVersion 15
         targetSdkVersion 24
         versionCode 2

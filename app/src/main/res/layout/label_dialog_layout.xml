@@ -19,7 +19,7 @@
         android:layout_height="50dp"
         android:background="@drawable/circular_edit_text"
         android:id="@+id/edit_label"
-        android:hint="Enter name"
+        android:hint="Alarm"
         android:gravity="center_vertical"
         android:singleLine="true"
         android:layout_gravity="center" />
